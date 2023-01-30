@@ -4,20 +4,8 @@ class EndpointError(Exception):
     pass
 
 
-class GlobalsError(Exception):
-    """Ошибка: пустые глобальные переменные."""
-
-    pass
-
-
 class ResponseFormatError(Exception):
     """Ошибка: формат response не json."""
-
-    pass
-
-
-class InvalidApiExc(Exception):
-    """Исключение - корректность ответа API."""
 
     pass
 
