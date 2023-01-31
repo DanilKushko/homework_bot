@@ -9,7 +9,7 @@ import telegram
 from dotenv import load_dotenv
 from telegram import TelegramError
 
-from exceptions import (EndpointError, InvalidResponseExc, ResponseFormatError)
+from exceptions import (EndpointError, ResponseFormatError)
 
 load_dotenv()
 
@@ -40,21 +40,16 @@ HOMEWORK_VERDICTS = {
 
 def check_tokens():
     """Проверяет доступность переменных окружения."""
-    errors = []
     keys = ['PRACTICUM_TOKEN', 'TELEGRAM_TOKEN', 'TELEGRAM_CHAT_ID']
+    errors = [key for key in keys]
     for key in keys:
+        errors = [key for key in keys if not globals()[key]]
         globals()[key]
-        if not key:
+        if not globals()[key]:
             errors.append(key)
     if len(errors):
-        logging.error('Cписок с отстутсвующими переменными не пуст "{key}".')
+        logging.critical('Cписок с отстутсвующими переменными не пуст "{key}"')
         sys.exit()
-    return all((PRACTICUM_TOKEN, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID))
-# я не смог убрать return
-# просто иначе pytest не проходит, видимо ему нужно,
-# чтобы переменные возвращались, подсмотрел такую штуку
-# как all() по идее она теперь возвращает значение True
-# если все элементы в итерируемом объекте - истинны
 
 
 def send_message(bot, message):
@@ -97,7 +92,7 @@ def get_api_answer(current_timestamp):
         return response.json()
     except TypeError as error:
         raise ResponseFormatError(
-            f'Формат декаодирования не json {error}'.format(error)
+            f'Формат декаодирования не json {error}'
         )
 
 
@@ -109,13 +104,11 @@ def check_response(response):
     if 'homeworks' not in response:
         raise KeyError('Некорректный ответ API')
     if 'current_date' not in response:
-        raise TypeError('Некорректный ответ API')
+        raise KeyError('Некорректный ответ API')
     if not isinstance(response.get('homeworks'), list):
         raise TypeError('not list в ответе API по ключу homeworks')
-    try:
-        return response.get('homeworks')
-    except Exception as error:
-        raise InvalidResponseExc(f'Из ответа не получен список работ: {error}')
+
+    return response.get('homeworks')
 
 
 def parse_status(homework):
@@ -125,10 +118,10 @@ def parse_status(homework):
     if 'status' not in homework:
         raise KeyError('Ключ status отсутствует')
     homework_name = homework['homework_name']
-    homework_status = homework.get('status')
+    homework_status = homework['status']
     if homework_status not in HOMEWORK_VERDICTS:
         raise ValueError(
-            f'Статус работы: "{homework_status}"'
+            f'Непредвиденный статус работы: "{homework_status}"'
         )
     verdict = HOMEWORK_VERDICTS[homework_status]
     return f'Изменился статус проверки работы "{homework_name}". {verdict}'
@@ -136,17 +129,16 @@ def parse_status(homework):
 
 def main():
     """Основная логика работы бота."""
-    if not check_tokens():
+    if check_tokens():
         logger.critical('Недоступны переменные окружения!')
         raise SystemExit('Ошибка глобальной переменной. Смотрите логи.')
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     current_timestamp = int(time.time())
     current_report = {
-        'messages': ''
+        'messages': '',
+        'name': ''
     }
-    prev_report = {
-        'messages': ''
-    }
+    prev_report = current_report.copy()
     while True:
         try:
             response = get_api_answer(current_timestamp)
@@ -161,7 +153,10 @@ def main():
                 current_report['messages'] = status
             else:
                 current_report['messages'] = 'ДЗ отсутствует.'
-                status = 'Новых статусов нет!'
+                logging.info(
+                    'Хозяин, ничего не изменилось! Прочитай сообщение!'
+                )
+                continue
             if current_report != prev_report:
                 send_message(bot=bot, message=status)
                 prev_report = current_report.copy()
