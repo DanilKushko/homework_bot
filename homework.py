@@ -41,15 +41,12 @@ HOMEWORK_VERDICTS = {
 def check_tokens():
     """Проверяет доступность переменных окружения."""
     keys = ['PRACTICUM_TOKEN', 'TELEGRAM_TOKEN', 'TELEGRAM_CHAT_ID']
-    errors = [key for key in keys]
-    for key in keys:
-        errors = [key for key in keys if not globals()[key]]
-        globals()[key]
-        if not globals()[key]:
-            errors.append(key)
+    errors = [key for key in keys if not globals()[key]]
     if len(errors):
-        logging.critical('Cписок с отстутсвующими переменными не пуст "{key}"')
-        sys.exit()
+        logging.critical(
+            f'Cписок с отстутсвующими переменными не пуст "{keys}".'
+        )
+        sys.exit('Ошибка глобальной переменной. Смотрите логи.')
 
 
 def send_message(bot, message):
@@ -129,9 +126,7 @@ def parse_status(homework):
 
 def main():
     """Основная логика работы бота."""
-    if check_tokens():
-        logger.critical('Недоступны переменные окружения!')
-        raise SystemExit('Ошибка глобальной переменной. Смотрите логи.')
+    check_tokens()
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     current_timestamp = int(time.time())
     current_report = {
